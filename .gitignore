@@ -1,0 +1,9 @@
+# Folders
+logs
+__pycache__
+.vscode
+venv
+
+# Files
+config.json
+in_progress.csv

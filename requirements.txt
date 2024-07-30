@@ -1,0 +1,4 @@
+ibridges
+python-dotenv
+pandas
+openpyxl
