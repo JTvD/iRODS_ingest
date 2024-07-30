@@ -33,7 +33,7 @@ class SMB():
     def is_share_mounted(self):
         """"Helper to check if the SMB drive is already mounted"""
         result = subprocess.run("net use", shell=True, check=True, capture_output=True, text=True)
-        return (self.drive_letter and self.smb_path) in result.stdout
+        return (self.drive_letter and self.smb_path.rstrip('\\')) in result.stdout
 
     def mount_share(self, password: str):
         """"Moun the SMB share if not yet mounted
