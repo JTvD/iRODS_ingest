@@ -3,7 +3,6 @@ from pathlib import Path
 import logging
 import multiprocessing
 import pandas as pd
-import numpy as np
 import queue
 
 import utils as utils
@@ -72,7 +71,7 @@ if __name__ == "__main__":
             continue
         elif row['_status'] in ['Folder', 'Zipped Folder'] and config['ZIP_FOLDERS']:
             # Check if the folder is already zipped
-            if not np.isnan(row['_zipPath']):
+            if not pd.isna(row['_zipPath']):
                 zip_path = Path(row['_zipPath'])
                 if zip_path.exists() and row['_status'] == 'Zipped Folder':
                     logging.info(f"Found zip file: {row['_zipPath']}")
@@ -153,7 +152,7 @@ if __name__ == "__main__":
                 to_upload_df.at[row_index, '_status'] = 'Uploaded'
                 to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
                 # Cleanup the zip file if it was created
-                if not np.isnan(to_upload_df.at[row_index, '_zipPath']):
+                if not pd.isna(to_upload_df.at[row_index, '_zipPath']):
                     if Path(to_upload_df.at[row_index, '_zipPath']).exists():
                         Path(to_upload_df.at[row_index, '_zipPath']).unlink()
                         with disk_space_lock:
