@@ -30,16 +30,17 @@ def check_paths(config: dict, password: str):
             exit(1)
 
     # Check if target path exists
-    target_path = Path(config['IRODS_TARGET_PATH'])
     ienv = utils.load_json(env_file)
     isession = Session(irods_env=ienv, password=password)
     # Verification if a connection is made
     isession.server_version
     # ---------------------------------------------------------
     # Bugged, will not return absolute path
+    # target_path = Path(config['IRODS_TARGET_PATH'])
     # target_ipath = IrodsPath(isession, target_path)
-    # ---------------------------------------------------------
     target_ipath = IrodsPath(isession)
+    target_ipath = target_ipath.parent
+    # ---------------------------------------------------------
     if not target_ipath.collection_exists():
         logging.error('Target path does not exist')
         exit(1)
@@ -66,10 +67,14 @@ def create_task_df(to_upload_df: pd.DataFrame, source_path: Path, target_ipath: 
     to_upload_df['_size'] = np.nan
     for ind, row in to_upload_df.iterrows():
         local_path = source_path.joinpath(row['Foldername'])
+        if row['NPEc module'] == 'ClimateCells':
+            ipath = target_ipath.joinpath('M4', row['System'].upper(), str(row['Year']))
         if row['NPEC module'] == 'Greenhouse':
-            ipath = target_ipath.joinpath('M5', row['System'], str(row['Year']))
+            logging.info(f"Greenhouse uploads are not yet implemented: {row['System']}")
+            exit(1)
+            #ipath = target_ipath.joinpath('M5', row['System'].upper(), str(row['Year']))
         elif row['NPEC module'] == 'OpenField':
-            ipath = target_ipath.joinpath('M6', row['System'], str(row['Year']))
+            ipath = target_ipath.joinpath('M6', row['System'].upper(), str(row['Year']))
         else:
             logging.error(f"Unknown NPEC module: {row['NPEC module']} for file: {row['Foldername']}")
 
