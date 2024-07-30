@@ -47,7 +47,7 @@ class SMB():
             logging.info(f"The drive {self.drive_letter} is already mounted")
             return True
         try:
-            subprocess.run(f"net use \"{self.drive_letter}\" {self.smb_path} {password} /user:{self.username}",
+            subprocess.run(f"net use \"{self.drive_letter}\" {self.smb_path} {password} /user:wur\\{self.username}",
                            shell=True, check=True, capture_output=True, text=True)
             logging.info(f"Mounted {self.drive_letter}")
             return True
@@ -63,7 +63,7 @@ if __name__ == "__main__":
 
     """Simple test script"""
     cfd = Path(__file__).parent
-    config = utils.load_config(cfd / "config.json")
+    config = utils.load_json(cfd / "config.json")
     password = getpass(f"Password for {config['SMB']['SMB_USER']}:")
     smb = SMB(config['SMB'])
     smb.mount_share(password)
