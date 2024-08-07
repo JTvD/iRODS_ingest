@@ -64,7 +64,8 @@ def check_paths(config: dict, password: str):
     return source_path, zip_path, target_ipath, ienv
 
 
-def create_task_df(to_upload_df: pd.DataFrame, source_path: Path, target_ipath: Path, zip_path: Path):
+def create_task_df(to_upload_df: pd.DataFrame, source_path: Path, 
+                   target_ipath: Path, zip_path: Path, isession: Session):
     """ Create a task dataframe:
     Note, folder paths are incomplete, the zipper adds the missing parts
     Args:
@@ -76,6 +77,8 @@ def create_task_df(to_upload_df: pd.DataFrame, source_path: Path, target_ipath: 
             Path to the target folder
         zip_path: Path
             Path to the zip folder
+        isession: Session
+            iRODS session
     Returns:
         to_upload_df: pd.DataFrame
             Added fields: _Path, _status, _zipPath, _iPath, _size
@@ -115,4 +118,13 @@ def create_task_df(to_upload_df: pd.DataFrame, source_path: Path, target_ipath: 
             logging.error(f"Invalid iRODS path at index {ind}: {to_upload_df.at[ind, '_iPath']},\
                            for file: {row['Foldername']}. Only {get_allowed_chars()} are allowed")
             exit(1)
+
+        # Check if file already exists, if not add it to the right queue
+        irods_path = IrodsPath(isession, row['_iPath'])
+        if (row['_zipPath'] or row['_status'] == 'File') and irods_path.dataobject_exists():
+            logging.info(f"File already exists: {row['_iPath']}")
+            to_upload_df.at[ind, '_status'] = 'existing ipath'
+        elif row['_status'] == 'Folder' and irods_path.collection_exists():
+            logging.info(f"Folder already exist: {row['_iPath']}")
+            to_upload_df.at[ind, '_status'] = 'existing ipath'
     return to_upload_df

@@ -13,7 +13,6 @@ from smb import SMB
 from helpers import create_task_df, check_paths
 from zipper import ZipperProcess
 from ibridges import Session
-from ibridges.path import IrodsPath
 
 
 if __name__ == "__main__":
@@ -46,7 +45,7 @@ if __name__ == "__main__":
                                   skiprows=0, engine="openpyxl")
         to_upload_df = metada_df.loc[metada_df['_to_upload'] == 'v'].copy()
         to_upload_df['_status'] = to_upload_df['_status'].astype(str)
-        to_upload_df = create_task_df(to_upload_df, source_path, target_ipath, zip_path)
+        to_upload_df = create_task_df(to_upload_df, source_path, target_ipath, zip_path, isession)
         to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
 
     # Create the shared objects
@@ -64,6 +63,9 @@ if __name__ == "__main__":
 
     # Fill the queues with jobs
     for ind, row in to_upload_df.iterrows():
+        if row['_status'] == 'existing ipath':
+            logging.info(f"Skipping existing iPath: {row['Foldername']}")
+            continue
         # check if folder exists, else: exit program
         if not Path(row['_Path']).exists():
             logging.error(f"Path does not exist {row['_Path']}, index: {ind}")
@@ -71,15 +73,6 @@ if __name__ == "__main__":
         if row['_status'] == 'Empty folder':
             logging.info(f"Skipping empty folder: {row['Foldername']}")
             continue
-
-        # Check if file already exists, if not add it to the right queue
-        irods_path = IrodsPath(isession, row['_iPath'])
-        if row['_zipPath'] or row['_status'] == 'File' and irods_path.dataobject_exists():
-            logging.info(f"File already exists: {row['_iPath']}")
-            to_upload_df.at[ind, '_status'] = 'existing ipath'
-        elif row['_status'] == 'Folder' and irods_path.collection_exists():
-            logging.info(f"Folder already exist: {row['_iPath']}")
-            to_upload_df.at[ind, '_status'] = 'existing ipath'
         elif row['_status'] in ['Folder', 'Zipped Folder'] and config['ZIP_FOLDERS']:
             # Check if the folder is already zipped
             if row['_zipPath']:
@@ -87,10 +80,12 @@ if __name__ == "__main__":
                 if zip_path.exists() and row['_status'] == 'Zipped Folder':
                     logging.info(f"Found zip file: {row['_zipPath']}")
                     to_upload_queue.put(row.to_dict())
-                else:  # Partial zip, delete
+                else:  # make zip
+                    # Partial zip, delete
                     if zip_path.exists():
                         available_diskspace += zip_path.stat().st_size
                         zip_path.unlink()
+                    folders_to_zip_queue.put(row.to_dict())
                 # Only compute folder size if not already done
                 if pd.isna(row['_size']):
                     folder_size = utils.get_folder_size(row['_Path'])
@@ -101,8 +96,6 @@ if __name__ == "__main__":
                 if row['_size'] > available_diskspace:
                     logging.error(f"Folder {row['_Path']} is too large: {row['_size']}/{available_diskspace}")
                     exit(1)
-                else:
-                    folders_to_zip_queue.put(row.to_dict())
         elif row['_status'] == 'Folder' and not config['ZIP_FOLDERS']:
             to_upload_queue.put(row.to_dict())
         elif row['_status'] == 'File':

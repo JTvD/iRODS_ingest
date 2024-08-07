@@ -4,6 +4,7 @@ import logging
 import os
 from datetime import datetime
 from time import sleep
+from zipfile import ZipFile, BadZipFile
 
 
 class ZipperProcess(multiprocessing.Process):
@@ -43,9 +44,30 @@ class ZipperProcess(multiprocessing.Process):
                 zip_root, _ = os.path.splitext(row_dict['_zipPath'])
                 shutil.make_archive(zip_root, 'zip', row_dict['_Path'])
                 logging.info(f"Zipper {self.id} zipped {row_dict['_Path']} in {datetime.now() - start_time}")
-                self.zipped_files_queue.put(row_dict)
+                if self.check_zip(row_dict['_zipPath']):
+                    self.zipped_files_queue.put(row_dict)
+                else:
+                    logging.error(f"Zipper {self.id} failed to zip {row_dict['_Path']}")
+                    exit(1)
             except Exception as e:
                 logging.error(f"Error zipping file {row_dict['_Path']}: {e}")
+
+    def check_zip(self, zip_path: str) -> bool:
+        """Check if the zip file is valid
+        Args:
+            zip_path: str
+                path to the zip file
+        Returns:
+            bool: True if the zip file is valid
+        """
+        try:
+            with ZipFile(zip_path, 'r') as zip_ref:
+                bad_file = zip_ref.testzip()
+                if bad_file:
+                    return False
+        except BadZipFile:
+            return False
+        return True
 
 
 # Example usage
