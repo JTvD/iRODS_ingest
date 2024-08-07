@@ -13,6 +13,7 @@ from smb import SMB
 from helpers import create_task_df, check_paths
 from zipper import ZipperProcess
 from ibridges import Session
+from ibridges.path import IrodsPath
 
 
 if __name__ == "__main__":
@@ -33,6 +34,7 @@ if __name__ == "__main__":
 
     # Check all the paths
     source_path, zip_path, target_ipath, ienv = check_paths(config, password)
+    isession = Session(irods_env=ienv, password=password)
 
     # Check if there is an 'in_progress.csv', if not create it
     # Only uploads the files with a 'v' in the '_to_upload' column
@@ -69,9 +71,18 @@ if __name__ == "__main__":
         if row['_status'] == 'Empty folder':
             logging.info(f"Skipping empty folder: {row['Foldername']}")
             continue
+
+        # Check if file already exists, if not add it to the right queue
+        irods_path = IrodsPath(isession, row['_iPath'])
+        if row['_zipPath'] or row['_status'] == 'File' and irods_path.dataobject_exists():
+            logging.info(f"File already exists: {row['_iPath']}")
+            to_upload_df.at[ind, '_status'] = 'existing ipath'
+        elif row['_status'] == 'Folder' and irods_path.collection_exists():
+            logging.info(f"Folder already exist: {row['_iPath']}")
+            to_upload_df.at[ind, '_status'] = 'existing ipath'
         elif row['_status'] in ['Folder', 'Zipped Folder'] and config['ZIP_FOLDERS']:
             # Check if the folder is already zipped
-            if not pd.isna(row['_zipPath']):
+            if row['_zipPath']:
                 zip_path = Path(row['_zipPath'])
                 if zip_path.exists() and row['_status'] == 'Zipped Folder':
                     logging.info(f"Found zip file: {row['_zipPath']}")
@@ -80,13 +91,15 @@ if __name__ == "__main__":
                     if zip_path.exists():
                         available_diskspace += zip_path.stat().st_size
                         zip_path.unlink()
-                # Check if the folder is too large
-                folder_size = utils.get_folder_size(row['_Path'])
-                row['_size'] = folder_size
-                to_upload_df.at[ind, '_size'] = folder_size
-                row['_size'] = folder_size
-                if folder_size > available_diskspace:
-                    logging.error(f"Folder {row['_Path']} is too large: {folder_size}/{available_diskspace}")
+                # Only compute folder size if not already done
+                if pd.isna(row['_size']):
+                    folder_size = utils.get_folder_size(row['_Path'])
+                    row['_size'] = folder_size
+                    to_upload_df.at[ind, '_size'] = folder_size
+                    row['_size'] = folder_size
+                # Check if the folder is too large to zip
+                if row['_size'] > available_diskspace:
+                    logging.error(f"Folder {row['_Path']} is too large: {row['_size']}/{available_diskspace}")
                     exit(1)
                 else:
                     folders_to_zip_queue.put(row.to_dict())
@@ -123,7 +136,7 @@ if __name__ == "__main__":
     # Update the progress csv as tasks are completed
     while len(zip_processes) > 0 or len(i_processes) > 0:
 
-        if len(zip_processes) > 0:
+        if len(zip_processes) > 0 or zipped_files_queue.qsize() > 0:
             try:
                 zipped_dfrow = zipped_files_queue.get(timeout=60)
                 if isinstance(zipped_dfrow, int):
@@ -138,10 +151,11 @@ if __name__ == "__main__":
                 pass
 
         # No new upload jobs expected
-        if len(zip_processes) == 0:
+        elif len(zip_processes) == 0:
             for i in range(0, config['NUM_IWORKERS']):
                 to_upload_queue.put({'NONE': 'NONE'})
 
+        # Uploaders
         try:
             i_path = uploaded_queue.get(timeout=60)
             if isinstance(i_path, int):
@@ -152,17 +166,17 @@ if __name__ == "__main__":
                 to_upload_df.at[row_index, '_status'] = 'Uploaded'
                 to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
                 # Cleanup the zip file if it was created
-                if not pd.isna(to_upload_df.at[row_index, '_zipPath']):
+                if to_upload_df.at[row_index, '_zipPath']:
                     if Path(to_upload_df.at[row_index, '_zipPath']).exists():
-                        Path(to_upload_df.at[row_index, '_zipPath']).unlink()
-                        with disk_space_lock:
-                            free_diskspace.value += to_upload_df.at[row_index, '_size']
+                        pass
+                        # Path(to_upload_df.at[row_index, '_zipPath']).unlink()
+                        # with disk_space_lock:
+                        #    free_diskspace.value += to_upload_df.at[row_index, '_size']
         except queue.Empty:
             pass
     logging.info("All workers finished, proceeding with metadata")
 
     # Add metadata
-    isession = Session(irods_env=ienv, password=password)
     for ind, row in to_upload_df.iterrows():
         if row['_status'] == 'Uploaded':
             ioperations.add_metadata(isession, row)

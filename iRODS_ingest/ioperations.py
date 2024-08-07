@@ -1,7 +1,6 @@
 # iBridges operations
 import logging
 import multiprocessing
-import pandas as pd
 from datetime import datetime
 from pathlib import Path
 from ibridges import Session
@@ -134,13 +133,16 @@ class I_WORKER(multiprocessing.Process):
                 logging.info("Stopping I_WORKER %d", self.id)
                 self.uploaded_queue.put(self.id)
                 break
-            if not pd.isna(row_dict['_zipPath']):
+            if row_dict['_zipPath']:
                 local_path = Path(row_dict['_zipPath'])
             else:
                 local_path = Path(row_dict['_Path'])
             irods_path = IrodsPath(self.session, row_dict['_iPath'])
-            self.uploader(local_path, irods_path)
-            self.uploaded_queue.put(str(irods_path))
+            try:
+                self.uploader(local_path, irods_path)
+                self.uploaded_queue.put(str(irods_path))
+            except Exception as e:
+                logging.error(f"Error uploading file {local_path}: {e}")
 
     def check_file_status(self, irods_path):
         logging.info(f"Checking status of {irods_path}")
