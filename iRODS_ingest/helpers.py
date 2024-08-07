@@ -8,6 +8,23 @@ from ibridges.path import IrodsPath
 import utils as utils
 
 
+def get_allowed_chars():
+    """Returns the allowed characters in iRODS paths of WUR servers"""
+    return 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!-_.*()'
+
+
+def verify_filename(filepath: Path):
+    """Verify if the filename contains no parts that are not allowed in iRODS
+    Args:
+        filename: str
+            filename to verify
+    Returns:
+        bool: True if the filename is valid
+    """
+    allowed_chars = set(get_allowed_chars())
+    return all(c in allowed_chars for c in filepath)
+
+
 def check_paths(config: dict, password: str):
     # Check iRODS environment file
     env_file = Path("~").expanduser().joinpath(".irods", config['IRODS_ENV_FILE'])
@@ -63,18 +80,18 @@ def create_task_df(to_upload_df: pd.DataFrame, source_path: Path, target_ipath: 
         to_upload_df: pd.DataFrame
             Added fields: _Path, _status, _zipPath, _iPath, _size
     """
-    to_upload_df['_zipPath'] = np.nan
+    to_upload_df['_zipPath'] = ""
     to_upload_df['_size'] = np.nan
     for ind, row in to_upload_df.iterrows():
         local_path = source_path.joinpath(row['Foldername'])
-        if row['NPEc module'] == 'ClimateCells':
-            ipath = target_ipath.joinpath('M4', row['System'].upper(), str(row['Year']))
+        if row['NPEC module'] == 'ClimateCells':
+            ipath = target_ipath.joinpath('M4', row['System'], str(row['Year']))
         if row['NPEC module'] == 'Greenhouse':
             logging.info(f"Greenhouse uploads are not yet implemented: {row['System']}")
             exit(1)
-            #ipath = target_ipath.joinpath('M5', row['System'].upper(), str(row['Year']))
+            # ipath = target_ipath.joinpath('M5', row['System'], str(row['Year']))
         elif row['NPEC module'] == 'OpenField':
-            ipath = target_ipath.joinpath('M6', row['System'].upper(), str(row['Year']))
+            ipath = target_ipath.joinpath('M6', row['System'], str(row['Year']))
         else:
             logging.error(f"Unknown NPEC module: {row['NPEC module']} for file: {row['Foldername']}")
 
@@ -93,4 +110,9 @@ def create_task_df(to_upload_df: pd.DataFrame, source_path: Path, target_ipath: 
         elif local_path.is_file():
             to_upload_df.at[ind, '_status'] = 'File'
             to_upload_df.at[ind, '_iPath'] = str(ipath.joinpath(local_path.name))
+        # check for invallid irods paths
+        if not verify_filename(to_upload_df.at[ind, '_iPath']):
+            logging.error(f"Invalid iRODS path at index {ind}: {to_upload_df.at[ind, '_iPath']},\
+                           for file: {row['Foldername']}. Only {get_allowed_chars()} are allowed")
+            exit(1)
     return to_upload_df
