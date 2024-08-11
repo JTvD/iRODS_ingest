@@ -160,10 +160,9 @@ if __name__ == "__main__":
                 # Cleanup the zip file if it was created
                 if to_upload_df.at[row_index, '_zipPath']:
                     if Path(to_upload_df.at[row_index, '_zipPath']).exists():
-                        pass
-                        # Path(to_upload_df.at[row_index, '_zipPath']).unlink()
-                        # with disk_space_lock:
-                        #    free_diskspace.value += to_upload_df.at[row_index, '_size']
+                        Path(to_upload_df.at[row_index, '_zipPath']).unlink()
+                        with disk_space_lock:
+                           free_diskspace.value += to_upload_df.at[row_index, '_size']
         except queue.Empty:
             pass
     logging.info("All workers finished, proceeding with metadata")
