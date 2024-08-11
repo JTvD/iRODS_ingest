@@ -1,4 +1,5 @@
 import logging
+import re
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -118,6 +119,14 @@ def create_task_df(to_upload_df: pd.DataFrame, source_path: Path,
             logging.error(f"Invalid iRODS path at index {ind}: {to_upload_df.at[ind, '_iPath']},\
                            for file: {row['Foldername']}. Only {get_allowed_chars()} are allowed")
             exit(1)
+        # Check if column names are valid sql identifiers
+        for col in row.keys():
+            # Skip upload status columns
+            if col[0] == '_':
+                continue
+            elif not check_sql_string(col):
+                logging.error(f"Invalid sql identifier at index {ind}: {col}, for file: {row['Foldername']}")
+                exit(1)
 
         # Check if file already exists, if not add it to the right queue
         irods_path = IrodsPath(isession, row['_iPath'])
@@ -128,3 +137,99 @@ def create_task_df(to_upload_df: pd.DataFrame, source_path: Path,
             logging.info(f"Folder already exist: {row['_iPath']}")
             to_upload_df.at[ind, '_status'] = 'existing ipath'
     return to_upload_df
+
+
+def check_sql_string(sql_string: str) -> bool:
+    """Check if the sql string is valid
+    Args:
+        sql_string: str
+            sql string to check
+    Returns:
+        bool: True if the sql string is valid
+    """
+
+    # Regular expression for valid identifier
+    identifier_regex = re.compile(r'^[A-Za-z_@#][A-Za-z0-9_@$#]*$')
+
+    # Check if the identifier matches the regex
+    if not identifier_regex.match(sql_string):
+        return False
+    # Check if the identifier is a reserved word
+    return check_reserved_sql_words(sql_string)
+
+
+def check_reserved_sql_words(sql_string: str) -> bool:
+    """Check if the sql string is a reserved word
+    Args:
+        sql_string: str
+            sql string to check
+    Returns:
+        bool: True if the sql string is not a reserved word
+    """
+    reserved_words = {
+        "ADD", "EXTERNAL", "PROCEDURE",
+        "ALL", "FETCH", "PUBLIC",
+        "ALTER", "FILE", "RAISERROR",
+        "AND", "FILLFACTOR", "READ",
+        "ANY", "FOR", "READTEXT",
+        "AS", "FOREIGN", "RECONFIGURE",
+        "ASC", "FREETEXT", "REFERENCES",
+        "AUTHORIZATION", "FREETEXTTABLE", "REPLICATION",
+        "BACKUP", "FROM", "RESTORE"
+        "BEGIN", "FULL", "RESTRICT",
+        "BETWEEN", "FUNCTION", "RETURN",
+        "BREAK", "GOTO", "REVERT",
+        "BROWSE", "GRANT", "REVOKE",
+        "BULK", "GROUP", "RIGHT",
+        "BY", "HAVING", "ROLLBACK",
+        "CASCADE", "HOLDLOCK", "ROWCOUNT",
+        "CASE", "IDENTITY", "ROWGUIDCOL",
+        "CHECK", "IDENTITY_INSERT", "RULE",
+        "CHECKPOINT", "IDENTITYCOL", "SAVE",
+        "CLOSE", "IF", "SCHEMA",
+        "CLUSTERED", "IN", "SECURITYAUDIT",
+        "COALESCE", "INDEX", "SELECT",
+        "COLLATE", "INNER", "SEMANTICKEYPHRASETABLE",
+        "COLUMN", "INSERT", "SEMANTICSIMILARITYDETAILSTABLE",
+        "COMMIT", "INTERSECT", "SEMANTICSIMILARITYTABLE",
+        "COMPUTE", "INTO"", ""SESSION_USER",
+        "CONSTRAINT", "IS", "SET",
+        "CONTAINS", "JOIN", "SETUSER",
+        "CONTAINSTABLE", "KEY", "SHUTDOWN",
+        "CONTINUE", "KILL", "SOME",
+        "CONVERT", "LEFT", "STATISTICS",
+        "CREATE", "LIKE", "SYSTEM_USER",
+        "CROSS", "LINENO", "TABLE",
+        "CURRENT", "LOAD", "TABLESAMPLE",
+        "CURRENT_DATE", "MERGE", "TEXTSIZE",
+        "CURRENT_TIME", "NATIONAL", "THEN",
+        "CURRENT_TIMESTAMP", "NOCHECK", "TO",
+        "CURRENT_USER", "NONCLUSTERED", "TOP",
+        "CURSOR", "NOT", "TRAN",
+        "DATABASE", "NULL", "TRANSACTION",
+        "DBCC", "NULLIF", "TRIGGER",
+        "DEALLOCATE", "OF", "TRUNCATE",
+        "DECLARE", "OFF", "TRY_CONVERT",
+        "DEFAULT", "OFFSETS", "TSEQUAL",
+        "DELETE", "ON", "UNION",
+        "DENY", "OPEN", "UNIQUE",
+        "DESC", "OPENDATASOURCE", "UNPIVOT",
+        "DISK", "OPENQUERY", "UPDATE",
+        "DISTINCT", "OPENROWSET", "UPDATETEXT",
+        "DISTRIBUTED", "OPENXML", "USE",
+        "DOUBLE", "OPTION", "USER",
+        "DROP", "OR", "VALUES",
+        "DUMP", "ORDER", "VARYING",
+        "ELSE", "OUTER", "VIEW",
+        "END", "OVER", "WAITFOR",
+        "ERRLVL", "PERCENT", "WHEN",
+        "ESCAPE", "PIVOT", "WHERE",
+        "EXCEPT", "PLAN", "WHILE",
+        "EXEC", "PRECISION", "WITH",
+        "EXECUTE", "PRIMARY", "WITHIN GROUP",
+        "EXISTS", "PRINT", "WRITETEXT",
+        "EXIT", "PROC", "ABSOLUTE"
+    }
+    if sql_string.upper() in reserved_words:
+        return False
+    return True
