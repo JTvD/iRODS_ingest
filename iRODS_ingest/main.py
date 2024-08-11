@@ -176,11 +176,11 @@ if __name__ == "__main__":
     to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
 
     # Send to tape
-    for ind, row in to_upload_df.iterrows():
-        if row['_status'] == 'Metadata added':
-            if ioperations.send_to_tape(isession, row)
-                to_upload_df.at[ind, '_status'] = 'Sent to tape'
-    to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
+    # for ind, row in to_upload_df.iterrows():
+    #     if row['_status'] == 'Metadata added':
+    #         if ioperations.send_to_tape(isession, row)
+    #             to_upload_df.at[ind, '_status'] = 'Sent to tape'
+    # to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
 
     # Check taping status
     for ind, row in to_upload_df.iterrows():
