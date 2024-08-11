@@ -128,7 +128,6 @@ if __name__ == "__main__":
 
     # Update the progress csv as tasks are completed
     while len(zip_processes) > 0 or len(i_processes) > 0:
-
         if len(zip_processes) > 0 or zipped_files_queue.qsize() > 0:
             try:
                 zipped_dfrow = zipped_files_queue.get(timeout=60)
@@ -177,20 +176,18 @@ if __name__ == "__main__":
     to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
 
     # Send to tape
-    # for ind, row in to_upload_df.iterrows():
-    #     if row['_status'] == 'Metadata added':
-    #         status = ioperations.send_to_tape(isession, row)
-    #         if status:
-    #               to_upload_df.at[ind, '_status'] = 'Sent to tape'
-    # to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
+    for ind, row in to_upload_df.iterrows():
+        if row['_status'] == 'Metadata added':
+            if ioperations.send_to_tape(isession, row)
+                to_upload_df.at[ind, '_status'] = 'Sent to tape'
+    to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
 
     # Check taping status
-    # for ind, row in to_upload_df.iterrows():
-    #     if row['_status'] == 'Sent to tape':
-    #         ioperations.check_status(isession, row)
-    #         if status:
-    #               to_upload_df.at[ind, '_status'] = 'Archived'
-    # to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
+    for ind, row in to_upload_df.iterrows():
+        if row['_status'] == 'Sent to tape':
+            if ioperations.check_status(isession, row)
+                to_upload_df.at[ind, '_status'] = 'Archived'
+    to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
 
     # Print the summary of the statuses
     status_counts = to_upload_df['_status'].value_counts()

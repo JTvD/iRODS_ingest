@@ -29,13 +29,16 @@ def add_metadata(session, row):
         # Skip upload status columns
         if col[0] == '_':
             continue
-        tagname = f"NPEC_{col}"
+        if 'NPEC ' in col:
+            tagname = col.replace('NPEC ', 'NPEC_').replace('npec ', 'NPEC_')
+        else:
+            tagname = f"NPEC_{col}"
         # print(f"{tagname}: {row[col]}")
         if not obj_meta.__contains__(tagname):
             if str(row[col]) == 'nan':
-                obj_meta.add(tagname, '-')
+                obj_meta.add(tagname.rstrip(), '-')
             else:
-                obj_meta.add(tagname, str(row[col]))
+                obj_meta.add(tagname.rstrip(), str(row[col]).rstrip())
     logging.info(f"Metadata added to {i_path}")
     return True
 
@@ -139,6 +142,9 @@ class I_WORKER(multiprocessing.Process):
                 local_path = Path(row_dict['_Path'])
             irods_path = IrodsPath(self.session, row_dict['_iPath'])
             try:
+                if (row_dict['_size'] > 10000000) or (row_dict['_status'] == 'Zipped Folder'):
+                    # Create a new iRODS session for big files to avoid hitting the timeouts.
+                    self.session = Session(irods_env=self.ienv, password=self.password)
                 self.uploader(local_path, irods_path)
                 self.uploaded_queue.put(str(irods_path))
             except Exception as e:
