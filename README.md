@@ -15,9 +15,10 @@ column exists in the folder
 - 7. Check if the file is on tape
 
 Statusses in the `_status` columns and the transfer from one to another is vizualized in the image below
-<div align="center">
-![statusses](/docs/statusses.png)
-</div>
+<p align="center">
+<img src="docs/statusses.png" alt="statusses" style="width:75%;"/>
+</p>
+
 
 At each status change the `in_progress.csv` file is updated to enable the script to continue where it stopped. Next to this it uses multiprocessing to make optimal use of the available resources, including a way to limit the disk space usage. Before the upload various checks are performed to ensure iRODS and SQL naming conventions are met, on top of this it is advised to check the metadata for consistency (not implemented).
 
@@ -48,10 +49,9 @@ As example NPEC uses the folowing columns:
 - Comment: free text
 - _to_upload: Add a `v`
 ```
-
-<div align="center">
-![statusses](/docs/test_excel.png)
-</div>
+<p align="center">
+<img src="docs/test_excel.png" alt="test_excel" style="width:75%;"/>
+</p>
 
 
 ## Config
