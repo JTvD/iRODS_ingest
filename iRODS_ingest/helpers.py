@@ -11,7 +11,7 @@ import utils as utils
 
 def get_allowed_chars():
     """Returns the allowed characters in iRODS paths of WUR servers"""
-    return 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!-_.*()'
+    return 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!-_.*()/'
 
 
 def verify_filename(filepath: Path):
@@ -65,7 +65,7 @@ def check_paths(config: dict, password: str):
     return source_path, zip_path, target_ipath, ienv
 
 
-def create_task_df(to_upload_df: pd.DataFrame, source_path: Path, 
+def create_task_df(to_upload_df: pd.DataFrame, source_path: Path,
                    target_ipath: Path, zip_path: Path, isession: Session):
     """ Create a task dataframe:
     Note, folder paths are incomplete, the zipper adds the missing parts
@@ -104,6 +104,7 @@ def create_task_df(to_upload_df: pd.DataFrame, source_path: Path,
             # Check if the folder is empty
             if not any(local_path.iterdir()):
                 to_upload_df.at[ind, '_status'] = 'Empty folder'
+                to_upload_df.at[ind, '_iPath'] = ""
             else:
                 to_upload_df.at[ind, '_status'] = 'Folder'
                 if zip_path != "":
@@ -114,6 +115,9 @@ def create_task_df(to_upload_df: pd.DataFrame, source_path: Path,
         elif local_path.is_file():
             to_upload_df.at[ind, '_status'] = 'File'
             to_upload_df.at[ind, '_iPath'] = str(ipath.joinpath(local_path.name))
+        else:
+            logging.error(f"Path is not a file or folder: {local_path}")
+            exit(1)
         # check for invallid irods paths
         if not verify_filename(to_upload_df.at[ind, '_iPath']):
             logging.error(f"Invalid iRODS path at index {ind}: {to_upload_df.at[ind, '_iPath']},\
@@ -129,12 +133,12 @@ def create_task_df(to_upload_df: pd.DataFrame, source_path: Path,
                 exit(1)
 
         # Check if file already exists, if not add it to the right queue
-        irods_path = IrodsPath(isession, row['_iPath'])
-        if (row['_zipPath'] or row['_status'] == 'File') and irods_path.dataobject_exists():
-            logging.info(f"File already exists: {row['_iPath']}")
+        irods_path = IrodsPath(isession, to_upload_df.at[ind, '_iPath'])
+        if (to_upload_df.at[ind, '_zipPath'] or to_upload_df.at[ind, '_status'] == 'File') and irods_path.dataobject_exists():
+            logging.info(f"File already exists: {to_upload_df.at[ind, '_iPath']}")
             to_upload_df.at[ind, '_status'] = 'existing ipath'
-        elif row['_status'] == 'Folder' and irods_path.collection_exists():
-            logging.info(f"Folder already exist: {row['_iPath']}")
+        elif to_upload_df.at[ind, '_status'] == 'Folder' and irods_path.collection_exists():
+            logging.info(f"Folder already exist: {to_upload_df.at[ind, '_iPath']}")
             to_upload_df.at[ind, '_status'] = 'existing ipath'
     return to_upload_df
 
@@ -149,7 +153,7 @@ def check_sql_string(sql_string: str) -> bool:
     """
 
     # Regular expression for valid identifier
-    identifier_regex = re.compile(r'^[A-Za-z_@#][A-Za-z0-9_@$#]*$')
+    identifier_regex = re.compile(r'^[A-Za-z_@#][A-Za-z0-9_@$# ]*$')
 
     # Check if the identifier matches the regex
     if not identifier_regex.match(sql_string):
@@ -230,6 +234,9 @@ def check_reserved_sql_words(sql_string: str) -> bool:
         "EXISTS", "PRINT", "WRITETEXT",
         "EXIT", "PROC", "ABSOLUTE"
     }
-    if sql_string.upper() in reserved_words:
-        return False
+    # \b is a word boundary, so the pattern will only match words
+    pattern = re.compile(r'\b' + re.escape(sql_string.upper()) + r'\b')
+    for word in reserved_words:
+        if pattern.fullmatch(word):
+            return False
     return True

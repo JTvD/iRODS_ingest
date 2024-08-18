@@ -63,7 +63,7 @@ if __name__ == "__main__":
 
     # Fill the queues with jobs
     for ind, row in to_upload_df.iterrows():
-        if row['_status'] == 'existing ipath':
+        if row['_status'] == 'existing ipath' or row['_status'] == 'Empty folder':
             logging.info(f"Skipping existing iPath: {row['Foldername']}")
             continue
         # check if folder exists, else: exit program
@@ -100,6 +100,8 @@ if __name__ == "__main__":
             to_upload_queue.put(row.to_dict())
         elif row['_status'] == 'File':
             to_upload_queue.put(row.to_dict())
+    # Update the progress csv
+    to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
 
     # Add the None jobs to signal the process they are done
     for i in range(0, config['NUM_ZIPPERS']):
@@ -162,7 +164,7 @@ if __name__ == "__main__":
                     if Path(to_upload_df.at[row_index, '_zipPath']).exists():
                         Path(to_upload_df.at[row_index, '_zipPath']).unlink()
                         with disk_space_lock:
-                           free_diskspace.value += to_upload_df.at[row_index, '_size']
+                            free_diskspace.value += to_upload_df.at[row_index, '_size']
         except queue.Empty:
             pass
     logging.info("All workers finished, proceeding with metadata")
@@ -177,14 +179,14 @@ if __name__ == "__main__":
     # Send to tape
     # for ind, row in to_upload_df.iterrows():
     #     if row['_status'] == 'Metadata added':
-    #         if ioperations.send_to_tape(isession, row)
+    #         if ioperations.send_to_tape(isession, row):
     #             to_upload_df.at[ind, '_status'] = 'Sent to tape'
     # to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
 
     # Check taping status
     for ind, row in to_upload_df.iterrows():
         if row['_status'] == 'Sent to tape':
-            if ioperations.check_status(isession, row)
+            if ioperations.check_status(isession, row):
                 to_upload_df.at[ind, '_status'] = 'Archived'
     to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
 
