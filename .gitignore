@@ -6,4 +6,4 @@ venv
 
 # Files
 config.json
-in_progress.csv
+*.csv
