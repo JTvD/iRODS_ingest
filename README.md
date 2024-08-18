@@ -49,6 +49,8 @@ As example NPEC uses the folowing columns:
 - Comment: free text
 - _to_upload: Add a `v`
 ```
+
+An example Excel is provided in the test_data folder:
 <p align="center">
 <img src="docs/test_excel.png" alt="test_excel" style="width:75%;"/>
 </p>
