@@ -80,6 +80,7 @@ if __name__ == "__main__":
                 if zip_path.exists() and row['_status'] == 'Zipped Folder':
                     logging.info(f"Found zip file: {row['_zipPath']}")
                     to_upload_queue.put(row.to_dict())
+                    continue
                 else:  # make zip
                     # Partial zip, delete
                     if zip_path.exists():
