@@ -24,7 +24,6 @@ At each status change the `in_progress.csv` file is updated to enable the script
 
 
 ## Important notes:
-- Issue with irods path prevents the entering of `/zone/home/xx`, it does allow `/zone/home/username`. Therefor it's currently diabled and set fixed to `/zone/home`
 - It is advised to only upload files, or zipped folders, to tape
 
 NPEC specific details one has to change before adopting the script:
