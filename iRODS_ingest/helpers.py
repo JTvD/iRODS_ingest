@@ -52,13 +52,9 @@ def check_paths(config: dict, password: str):
     isession = Session(irods_env=ienv, password=password)
     # Verification if a connection is made
     isession.server_version
-    # ---------------------------------------------------------
-    # Bugged, will not return absolute path
-    # target_path = Path(config['IRODS_TARGET_PATH'])
-    # target_ipath = IrodsPath(isession, target_path)
-    target_ipath = IrodsPath(isession)
-    target_ipath = target_ipath.parent
-    # ---------------------------------------------------------
+
+    target_path = Path(config['IRODS_TARGET_PATH'])
+    target_ipath = IrodsPath(isession, target_path)
     if not target_ipath.collection_exists():
         logging.error('Target path does not exist')
         exit(1)
