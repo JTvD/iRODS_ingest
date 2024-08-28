@@ -101,7 +101,6 @@ class I_WORKER(multiprocessing.Process):
         super().__init__()
         self.ienv = ienv
         self.password = password
-        self.upload_options = {'regChksum': True, 'verifyChksum': True, 'ChksumAll': True}
         self.stop_worker = stop_worker
         self.files_to_upload_queue = files_to_upload_queue
         self.uploaded_queue = uploaded_queue
@@ -115,7 +114,7 @@ class I_WORKER(multiprocessing.Process):
         if not irods_path.dataobject_exists():
             start_time = datetime.now()
             logging.info(f"Uploading {local_path} to {irods_path}")
-            upload(self.session, local_path, irods_path, overwrite=True, options=self.upload_options)
+            upload(self.session, local_path, irods_path, overwrite=True)
             logging.info(f"Uploader {self.id} uploaded {local_path} in {datetime.now() - start_time}")
 
         # Check if the file or files in folder are uploaded succesfully
