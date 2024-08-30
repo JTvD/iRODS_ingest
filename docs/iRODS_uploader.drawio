@@ -43,7 +43,7 @@
         <mxCell id="XwpN1rITecCISZWxZp4f-20" value="&lt;div style=&quot;font-size: 14px; line-height: 19px; white-space: pre;&quot;&gt;&lt;span style=&quot;background-color: rgb(255, 255, 255); font-size: 14px;&quot;&gt;Archived&lt;/span&gt;&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" parent="1" vertex="1">
           <mxGeometry x="780" y="720" width="80" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="XwpN1rITecCISZWxZp4f-21" value="&lt;div style=&quot;font-size: 14px; line-height: 19px; white-space: pre;&quot;&gt;&lt;font face=&quot;Helvetica&quot;&gt;Zipped Folder&lt;/font&gt;&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" parent="1" vertex="1">
+        <mxCell id="XwpN1rITecCISZWxZp4f-21" value="&lt;div style=&quot;font-size: 14px; line-height: 19px; white-space: pre;&quot;&gt;&lt;font face=&quot;Helvetica&quot;&gt;Zipped FF*&lt;/font&gt;&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" parent="1" vertex="1">
           <mxGeometry x="250" y="820" width="110" height="30" as="geometry" />
         </mxCell>
         <mxCell id="XwpN1rITecCISZWxZp4f-22" value="" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;fontSize=14;" parent="1" source="XwpN1rITecCISZWxZp4f-14" target="XwpN1rITecCISZWxZp4f-21" edge="1">
@@ -95,6 +95,15 @@
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="180" y="825" as="sourcePoint" />
             <mxPoint x="263" y="705" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="Iw7uo3_e4I0jsVlots8f-5" value="* when &#39;ZIP_SPLIT_ABOVE_5TB&#39; is set to &#39;true&#39;, files and folders larger than 5TB will be zipped into multiple parts&amp;nbsp;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="177.5" y="918" width="620" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="Iw7uo3_e4I0jsVlots8f-6" value="" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="XwpN1rITecCISZWxZp4f-12" target="XwpN1rITecCISZWxZp4f-21">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="240" y="570" as="sourcePoint" />
+            <mxPoint x="290" y="520" as="targetPoint" />
           </mxGeometry>
         </mxCell>
       </root>
