@@ -99,8 +99,8 @@ if __name__ == "__main__":
                     exit(1)
         elif row['_status'] == 'Folder' and not config['ZIP_FOLDERS']:
             # 5TB, max file size for the s3 api used by iRODS
-            if row['_size'] > 1000 ** 4:
-                if config['ZIP_SPLIT_ABOVE_5TB']:
+            if row['_size'] > 5 *10 ** 12:
+                if config['ZIP_SPLIT_ABOVE_5TB'] and ZipperProcess.get_winrar_path() != "":
                     ff_to_zip_queue.put(row.to_dict())
                 else:
                     logging.error(f"Folder {row['_Path']} is too large for the s3api, skipping")
@@ -109,8 +109,8 @@ if __name__ == "__main__":
                 to_upload_queue.put(row.to_dict())
         elif row['_status'] == 'File':
             # 5TB, max file size for the s3 api used by iRODS
-            if row['_size'] > 1000 ** 4:
-                if config['ZIP_SPLIT_ABOVE_5TB']:
+            if row['_size'] > 5 *10 ** 12:
+                if config['ZIP_SPLIT_ABOVE_5TB'] and ZipperProcess.get_winrar_path() != "":
                     ff_to_zip_queue.put(row.to_dict())
                 else:
                     logging.error(f"Folder {row['_Path']} is too large for the s3api, skipping")

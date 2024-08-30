@@ -48,8 +48,11 @@ class ZipperProcess(multiprocessing.Process):
                 start_time = datetime.now()
                 if self.winrar_path:
                     status = self.zip_file_with_winrar(self.winrar_path, row_dict['_Path'], row_dict['_zipPath'])
-                else:
+                elif row_dict['_size'] <= 5 * 10 ** 12:
+                    # python zipfunctions don't support multipart zips...
                     status = self.zip_file_with_shutil(row_dict['_Path'], row_dict['_zipPath'])
+                else:
+                    raise Exception(f"File {row_dict['_Path']} is too large to zip without winrar, skipping")
                 logging.info(f"Zipper {self.id} zipped {row_dict['_Path']} in {datetime.now() - start_time}")
                 if status and self.check_zip(row_dict['_zipPath']):
                     self.zipped_files_queue.put(row_dict)
