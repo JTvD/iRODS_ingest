@@ -79,11 +79,11 @@ if __name__ == "__main__":
         if row['_status'] == 'Empty folder':
             logging.info(f"Skipping empty folder: {row['Foldername']}")
             continue
-        elif row['_status'] in ['Folder', 'Zipped Folder'] and config['ZIP_FOLDERS']:
+        elif row['_status'] in ['Folder', 'Zipped FF'] and config['ZIP_FOLDERS']:
             # Check if the folder is already zipped
             if row['_zipPath']:
                 zip_path = Path(row['_zipPath'])
-                if zip_path.exists() and row['_status'] == 'Zipped Folder':
+                if zip_path.exists() and row['_status'] == 'Zipped FF':
                     logging.info(f"Found zip file: {row['_zipPath']}")
                     to_upload_queue.put(row.to_dict())
                     continue
@@ -98,12 +98,23 @@ if __name__ == "__main__":
                     logging.error(f"Folder {row['_Path']} is too large: {row['_size']}/{available_diskspace}")
                     exit(1)
         elif row['_status'] == 'Folder' and not config['ZIP_FOLDERS']:
-            # Note, if a folder contains a file larger than 5TB, the upload will fail...
-            to_upload_queue.put(row.to_dict())
+            # 5TB, max file size for the s3 api used by iRODS
+            if row['_size'] > 1000 ** 4:
+                if config['ZIP_SPLIT_ABOVE_5TB']:
+                    ff_to_zip_queue.put(row.to_dict())
+                else:
+                    logging.error(f"Folder {row['_Path']} is too large for the s3api, skipping")
+                    row['_status'] == 'Skipped s3 limit'
+            else:
+                to_upload_queue.put(row.to_dict())
         elif row['_status'] == 'File':
             # 5TB, max file size for the s3 api used by iRODS
-            if row['_size'] > 1000 ** 4 and config['ZIP_SPLIT_ABOVE_5TB']:
-                ff_to_zip_queue.put(row.to_dict())
+            if row['_size'] > 1000 ** 4:
+                if config['ZIP_SPLIT_ABOVE_5TB']:
+                    ff_to_zip_queue.put(row.to_dict())
+                else:
+                    logging.error(f"Folder {row['_Path']} is too large for the s3api, skipping")
+                    row['_status'] == 'Skipped s3 limit'
             else:
                 to_upload_queue.put(row.to_dict())
     # Update the progress csv
@@ -144,7 +155,7 @@ if __name__ == "__main__":
                     zip_processes.pop(zipped_dfrow)
                 else:
                     row_index = to_upload_df.loc[to_upload_df['_zipPath'] == zipped_dfrow['_zipPath']].index[0]
-                    to_upload_df.at[row_index, '_status'] = 'Zipped Folder'
+                    to_upload_df.at[row_index, '_status'] = 'Zipped FF'
                     to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
                     to_upload_queue.put(zipped_dfrow)
             except queue.Empty:
