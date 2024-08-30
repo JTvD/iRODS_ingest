@@ -31,6 +31,13 @@ def parse_filesize(sizestr: str):
     return int(number*units[unit])
 
 
+def get_ffsize(file_folder_path: str):
+    """Get the size of a file or folder in bytes"""
+    if Path(file_folder_path).is_dir():
+        return get_folder_size(file_folder_path)
+    return Path(file_folder_path).stat().st_size
+
+
 def get_folder_size(folder_path: str):
     """Get the size of a folder"""
     total_size = 0

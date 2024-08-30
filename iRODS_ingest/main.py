@@ -49,7 +49,7 @@ if __name__ == "__main__":
         to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
 
     # Create the shared objects
-    folders_to_zip_queue = multiprocessing.Queue()
+    ff_to_zip_queue = multiprocessing.Queue()
     zipped_files_queue = multiprocessing.Queue()
     to_upload_queue = multiprocessing.Queue()
     uploaded_queue = multiprocessing.Queue()
@@ -70,6 +70,12 @@ if __name__ == "__main__":
         if not Path(row['_Path']).exists():
             logging.error(f"Path does not exist {row['_Path']}, index: {ind}")
             exit(1)
+        # Only compute the file/folder size if not already done
+        if pd.isna(row['_size']):
+            ff_size = utils.get_ffsize(row['_Path'])
+            row['_size'] = ff_size
+            to_upload_df.at[ind, '_size'] = ff_size
+            row['_size'] = ff_size
         if row['_status'] == 'Empty folder':
             logging.info(f"Skipping empty folder: {row['Foldername']}")
             continue
@@ -81,32 +87,31 @@ if __name__ == "__main__":
                     logging.info(f"Found zip file: {row['_zipPath']}")
                     to_upload_queue.put(row.to_dict())
                     continue
-                else:  # make zip
+                else:
                     # Partial zip, delete
                     if zip_path.exists():
                         available_diskspace += zip_path.stat().st_size
                         zip_path.unlink()
-                    folders_to_zip_queue.put(row.to_dict())
-                # Only compute folder size if not already done
-                if pd.isna(row['_size']):
-                    folder_size = utils.get_folder_size(row['_Path'])
-                    row['_size'] = folder_size
-                    to_upload_df.at[ind, '_size'] = folder_size
-                    row['_size'] = folder_size
+                    ff_to_zip_queue.put(row.to_dict())
                 # Check if the folder is too large to zip
                 if row['_size'] > available_diskspace:
                     logging.error(f"Folder {row['_Path']} is too large: {row['_size']}/{available_diskspace}")
                     exit(1)
         elif row['_status'] == 'Folder' and not config['ZIP_FOLDERS']:
+            # Note, if a folder contains a file larger than 5TB, the upload will fail...
             to_upload_queue.put(row.to_dict())
         elif row['_status'] == 'File':
-            to_upload_queue.put(row.to_dict())
+            # 5TB, max file size for the s3 api used by iRODS
+            if row['_size'] > 1000 ** 4 and config['ZIP_SPLIT_ABOVE_5TB']:
+                ff_to_zip_queue.put(row.to_dict())
+            else:
+                to_upload_queue.put(row.to_dict())
     # Update the progress csv
     to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
 
     # Add the None jobs to signal the process they are done
     for i in range(0, config['NUM_ZIPPERS']):
-        folders_to_zip_queue.put({'NONE': 'NONE'})
+        ff_to_zip_queue.put({'NONE': 'NONE'})
 
     # If zipping is preferred, start the processes
     if config['ZIP_FOLDERS']:
@@ -114,7 +119,7 @@ if __name__ == "__main__":
         disk_space_lock = multiprocessing.Lock()
         for i in range(0, config['NUM_ZIPPERS']):
             zipper = ZipperProcess(stop_workers,
-                                   folders_to_zip_queue,
+                                   ff_to_zip_queue,
                                    zipped_files_queue,
                                    disk_space_lock,
                                    free_diskspace,

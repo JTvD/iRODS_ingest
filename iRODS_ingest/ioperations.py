@@ -141,7 +141,7 @@ class I_WORKER(multiprocessing.Process):
                 local_path = Path(row_dict['_Path'])
             irods_path = IrodsPath(self.session, row_dict['_iPath'])
             try:
-                if (row_dict['_size'] > 10000000) or (row_dict['_status'] == 'Zipped Folder'):
+                if (row_dict['_size'] > 10000000) or (row_dict['_status'] == 'Zipped FF'):
                     # Create a new iRODS session for big files to avoid hitting the timeouts.
                     self.session = Session(irods_env=self.ienv, password=self.password)
                 self.uploader(local_path, irods_path)
