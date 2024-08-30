@@ -59,7 +59,8 @@ class ZipperProcess(multiprocessing.Process):
             except Exception as e:
                 logging.error(f"Error zipping file {row_dict['_Path']}: {e}")
 
-    def get_winrar_path(self) -> str:
+    @staticmethod
+    def get_winrar_path() -> str:
         """Get the installation path of WinRAR by checking common directories."""
         # windows
         common_paths = [
@@ -99,8 +100,9 @@ class ZipperProcess(multiprocessing.Process):
         """
         try:
             # Construct the WinRAR command, -inul is for no output
+            # -cfg is to ignore the default size limit, -v5T is for 5TB volumes, the max of the s3api used by irods.
             command = [
-                rar_path, "a", "-afzip" "-ep1",  "-inul", str(zip_path), str(local_path)
+                rar_path, "a", "-afzip" "-ep1",  "-inul", "-cfg", "-v5T", str(zip_path), str(local_path)
             ]
             # Execute the command
             run(command, check=True)
