@@ -7,6 +7,8 @@ from time import sleep
 from zipfile import ZipFile, BadZipFile
 from subprocess import run, CalledProcessError, PIPE
 
+from __init__ import FIVE_TB_FILE_LIMIT
+
 
 class ZipperProcess(multiprocessing.Process):
     """Process to zip files"""
@@ -47,14 +49,16 @@ class ZipperProcess(multiprocessing.Process):
                     sleep(300)
                 start_time = datetime.now()
                 if self.winrar_path:
-                    status = self.zip_file_with_winrar(self.winrar_path, row_dict['_Path'], row_dict['_zipPath'])
-                elif row_dict['_size'] <= 5 * 10 ** 12:
+                    status = self.zip_file_with_winrar(row_dict['_Path'], row_dict['_zipPath'])
+                elif row_dict['_size'] <= FIVE_TB_FILE_LIMIT:
                     # python zipfunctions don't support multipart zips...
                     status = self.zip_file_with_shutil(row_dict['_Path'], row_dict['_zipPath'])
                 else:
                     raise Exception(f"File {row_dict['_Path']} is too large to zip without winrar, skipping")
                 logging.info(f"Zipper {self.id} zipped {row_dict['_Path']} in {datetime.now() - start_time}")
-                if status and self.check_zip(row_dict['_zipPath']):
+                if status and self.winrar_path and self.check_winrar_zip(row_dict['_zipPath']):
+                    self.zipped_files_queue.put(row_dict)
+                elif status and self.check_zip(row_dict['_zipPath']):
                     self.zipped_files_queue.put(row_dict)
                 else:
                     logging.error(f"Zipper {self.id} failed to zip {row_dict['_Path']}")
@@ -89,11 +93,9 @@ class ZipperProcess(multiprocessing.Process):
             logging.error("The 'where' command is not found.")
         return ""
 
-    def zip_file_with_winrar(self, rar_path, local_path, zip_path) -> bool:
+    def zip_file_with_winrar(self, local_path, zip_path) -> bool:
         """Zip a file using WinRAR
         Args:
-            rar_path: str
-                path to the WinRAR executable
             local_path: str
                 path to the file to zip
             zip_path: str
@@ -103,9 +105,9 @@ class ZipperProcess(multiprocessing.Process):
         """
         try:
             # Construct the WinRAR command, -inul is for no output
-            # -cfg is to ignore the default size limit, -v5T is for 5TB volumes, the max of the s3api used by irods.
+            # -v5T is for 5TB volumes, the max of the s3api used by irods.
             command = [
-                rar_path, "a", "-afzip" "-ep1",  "-inul", "-cfg", "-v5T", str(zip_path), str(local_path)
+                self.winrar_path, "a", "-afzip" "-ep1",  "-inul", "-v5T", str(zip_path), str(local_path)
             ]
             # Execute the command
             run(command, check=True)
@@ -146,6 +148,25 @@ class ZipperProcess(multiprocessing.Process):
         except BadZipFile:
             return False
         return True
+
+    def check_winrar_zip(self, zip_path: str) -> bool:
+        """Check if the rar file is valid, as python does not support multipart zips and winrar is faster this is preferred
+        Args:
+            zip_path: str
+                path to the zip file
+        Returns:
+            bool: True if the zip file is valid"""
+        # Construct the WinRAR command, -inul is for no output
+        command = [
+            self.winrar_path, "t", "-inul", zip_path]
+        # Execute the command
+        try:
+            status = run(command, check=True)
+            if status.returncode == 0:
+                return True
+        except CalledProcessError:
+            pass
+        return False
 
 
 # Example usage

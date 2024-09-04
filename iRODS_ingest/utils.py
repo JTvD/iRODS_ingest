@@ -49,6 +49,15 @@ def get_folder_size(folder_path: str):
     return total_size
 
 
+def check_for_multipart_zip(zip_path: str):
+    """Check if a zip is multipart and return the partnumbers if there are any"""
+    path = Path(zip_path)
+    parts = []
+    for file in path.parent.glob(f"{path.stem}.*"):
+        parts.append(file)
+    return parts
+
+
 def setup_logger(filename='iRODS_upload'):
     ''' setup the logger '''
     cfd = Path(__file__).parent

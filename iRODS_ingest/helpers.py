@@ -53,8 +53,7 @@ def check_paths(config: dict, password: str):
     # Verification if a connection is made
     isession.server_version
 
-    target_path = Path(config['IRODS_TARGET_PATH'])
-    target_ipath = IrodsPath(isession, target_path)
+    target_ipath = IrodsPath(isession, config['IRODS_TARGET_PATH'])
     if not target_ipath.collection_exists():
         logging.error('Target path does not exist')
         exit(1)

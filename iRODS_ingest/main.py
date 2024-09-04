@@ -6,6 +6,7 @@ import pandas as pd
 import queue
 
 import utils as utils
+from __init__ import FIVE_TB_FILE_LIMIT
 # iBridges instantiates a logger which causes the basic config setting to be ignored
 utils.setup_logger()
 import ioperations as ioperations
@@ -13,6 +14,33 @@ from smb import SMB
 from helpers import create_task_df, check_paths
 from zipper import ZipperProcess
 from ibridges import Session
+
+
+def queue_multipart_zips(to_upload_queue, upload_df, row_dict):
+    """Queue multipart zips and add them to the upload_df for status monitoring (parts don't get any metadata)"""
+    parts = utils.check_for_multipart_zip(row_dict['_zipPath'])
+
+    # single zip
+    if len(parts) == 1:
+        to_upload_queue.put(row_dict)
+        return
+
+    # multipart
+    no_metadata_dict = {k: v for k, v in row_dict.items() if k.startswith('_')}
+    no_metadata_dict['_status'] = 'Zipped FF'
+    part_dicts = []
+    for part in parts:
+        # Add part to status dataframe
+        if str(part) != no_metadata_dict['_zipPath']:
+            part_dict = no_metadata_dict.copy()
+            part_dict['_zipPath'] = str(part)
+            part_dict['_iPath'] = row_dict['_iPath'] + f".z{part.suffix[-2:]}"
+            part_dict['_size'] = 0
+            part_dicts.append(part_dict)
+        to_upload_queue.put(part_dict)
+    part_df = pd.DataFrame(part_dicts)
+    upload_df = pd.concat([upload_df, part_df], ignore_index=True)
+    return upload_df
 
 
 if __name__ == "__main__":
@@ -92,6 +120,11 @@ if __name__ == "__main__":
                     if zip_path.exists():
                         available_diskspace += zip_path.stat().st_size
                         zip_path.unlink()
+                        # Multipart zips
+                        if zip_path.with_suffix('.z01').exists():
+                            for file in zip_path.parent.glob(f"{zip_path.stem}.*"):
+                                available_diskspace += file.stat().st_size
+                                file.unlink()
                     ff_to_zip_queue.put(row.to_dict())
                 # Check if the folder is too large to zip
                 if row['_size'] > available_diskspace:
@@ -99,7 +132,7 @@ if __name__ == "__main__":
                     exit(1)
         elif row['_status'] == 'Folder' and not config['ZIP_FOLDERS']:
             # 5TB, max file size for the s3 api used by iRODS
-            if row['_size'] > 5 *10 ** 12:
+            if row['_size'] > FIVE_TB_FILE_LIMIT:
                 if config['ZIP_SPLIT_ABOVE_5TB'] and ZipperProcess.get_winrar_path() != "":
                     ff_to_zip_queue.put(row.to_dict())
                 else:
@@ -109,7 +142,7 @@ if __name__ == "__main__":
                 to_upload_queue.put(row.to_dict())
         elif row['_status'] == 'File':
             # 5TB, max file size for the s3 api used by iRODS
-            if row['_size'] > 5 *10 ** 12:
+            if row['_size'] > FIVE_TB_FILE_LIMIT:
                 if config['ZIP_SPLIT_ABOVE_5TB'] and ZipperProcess.get_winrar_path() != "":
                     ff_to_zip_queue.put(row.to_dict())
                 else:
@@ -156,8 +189,9 @@ if __name__ == "__main__":
                 else:
                     row_index = to_upload_df.loc[to_upload_df['_zipPath'] == zipped_dfrow['_zipPath']].index[0]
                     to_upload_df.at[row_index, '_status'] = 'Zipped FF'
+
+                    to_upload_df = queue_multipart_zips(to_upload_queue, to_upload_df, zipped_dfrow)
                     to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
-                    to_upload_queue.put(zipped_dfrow)
             except queue.Empty:
                 pass
 
