@@ -25,6 +25,8 @@ At each status change the `in_progress.csv` file is updated to enable the script
 
 ## Important notes:
 - It is advised to only upload files, or zipped folders, to tape
+- The WUR iRODS instances use S3 to talk to underlaying storage like the tape archive. 
+The S3AI limits the maximum filesize at 5TB, when using winrar files and folder > 5TB are zipped in parts using the standard multizip approach. unfortunately python's zip implementations don't support this at the time of writing. Metadata is only added to the first part.
 
 NPEC specific details one has to change before adopting the script:
 - Metadata is set with a 'NPEC_' prefix,in i_operations.py > add_metadata > `tagname = f"NPEC_{col}"`
@@ -61,6 +63,7 @@ A config file is used to pass all the parameters, the goal is to make it easy to
 {
     "SMB_MOUNT": true, # Used to automatically mount an SMB mountable disk like the W (isilon) at WUR
     "ZIP_FOLDERS": true, # Zip the folders before uploading, this is advised when sending data to the tape archive
+    "ZIP_SPLIT_ABOVE_5TB": true, # S3API has a max filesize of 5TB. when true bigger files are split. if false, they are ignored.
     "TO_TAPE": true, # Wether or not to trigger the archive rule to move the data fromdisk to tape after uploading
     "NUM_ZIPPERS": 1, # Num of zip processes
     "NUM_IWORKERS": 1, # Numer of irods uploaded processes

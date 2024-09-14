@@ -53,8 +53,7 @@ def check_paths(config: dict, password: str):
     # Verification if a connection is made
     isession.server_version
 
-    target_path = Path(config['IRODS_TARGET_PATH'])
-    target_ipath = IrodsPath(isession, target_path)
+    target_ipath = IrodsPath(isession, config['IRODS_TARGET_PATH'])
     if not target_ipath.collection_exists():
         logging.error('Target path does not exist')
         exit(1)
@@ -86,7 +85,7 @@ def create_task_df(to_upload_df: pd.DataFrame, source_path: Path,
         local_path = source_path.joinpath(row['Foldername'])
         if row['NPEC module'] == 'ClimateCells':
             ipath = target_ipath.joinpath('M4', row['System'], str(row['Year']))
-        if row['NPEC module'] == 'Greenhouse':
+        elif row['NPEC module'] == 'Greenhouse':
             logging.info(f"Greenhouse uploads are not yet implemented: {row['System']}")
             exit(1)
             # ipath = target_ipath.joinpath('M5', row['System'], str(row['Year']))

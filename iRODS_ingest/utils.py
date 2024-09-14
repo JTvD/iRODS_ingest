@@ -31,6 +31,13 @@ def parse_filesize(sizestr: str):
     return int(number*units[unit])
 
 
+def get_ffsize(file_folder_path: str):
+    """Get the size of a file or folder in bytes"""
+    if Path(file_folder_path).is_dir():
+        return get_folder_size(file_folder_path)
+    return Path(file_folder_path).stat().st_size
+
+
 def get_folder_size(folder_path: str):
     """Get the size of a folder"""
     total_size = 0
@@ -40,6 +47,15 @@ def get_folder_size(folder_path: str):
             total_size += path.stat().st_size
     logging.info(f"Computed size of {folder_path} in {datetime.now() - start_time}")
     return total_size
+
+
+def check_for_multipart_zip(zip_path: str):
+    """Check if a zip is multipart and return the partnumbers if there are any"""
+    path = Path(zip_path)
+    parts = []
+    for file in path.parent.glob(f"{path.stem}.*"):
+        parts.append(file)
+    return parts
 
 
 def setup_logger(filename='iRODS_upload'):

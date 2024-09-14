@@ -6,6 +6,7 @@ import pandas as pd
 import queue
 
 import utils as utils
+from __init__ import FIVE_TB_FILE_LIMIT
 # iBridges instantiates a logger which causes the basic config setting to be ignored
 utils.setup_logger()
 import ioperations as ioperations
@@ -13,6 +14,32 @@ from smb import SMB
 from helpers import create_task_df, check_paths
 from zipper import ZipperProcess
 from ibridges import Session
+
+
+def queue_multipart_zips(to_upload_queue, upload_df, row_dict):
+    """Queue multipart zips and add them to the upload_df for status monitoring (parts don't get any metadata)"""
+    parts = utils.check_for_multipart_zip(row_dict['_zipPath'])
+
+    # Single zip
+    if len(parts) == 1:
+        to_upload_queue.put(row_dict)
+        return
+
+    # Multipart zip
+    row_dict['_status'] = 'Zipped FF'
+    part_dicts = []
+    for part in parts:
+        # Add part to status dataframe
+        if str(part) != row_dict['_zipPath']:
+            part_dict = row_dict.copy()
+            part_dict['_zipPath'] = str(part)
+            part_dict['_iPath'] = row_dict['_iPath'] + f".z{part.suffix[-2:]}"
+            part_dict['_size'] = 0
+            part_dicts.append(part_dict)
+        to_upload_queue.put(part_dict)
+    part_df = pd.DataFrame(part_dicts)
+    upload_df = pd.concat([upload_df, part_df], ignore_index=True)
+    return upload_df
 
 
 if __name__ == "__main__":
@@ -44,12 +71,14 @@ if __name__ == "__main__":
         metada_df = pd.read_excel(Path(source_path).joinpath(config['METADATA_EXCEL']),
                                   skiprows=0, engine="openpyxl")
         to_upload_df = metada_df.loc[metada_df['_to_upload'] == 'v'].copy()
+        if '_status' not in to_upload_df.columns:
+            to_upload_df['_status'] = ""
         to_upload_df['_status'] = to_upload_df['_status'].astype(str)
         to_upload_df = create_task_df(to_upload_df, source_path, target_ipath, zip_path, isession)
         to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
 
     # Create the shared objects
-    folders_to_zip_queue = multiprocessing.Queue()
+    ff_to_zip_queue = multiprocessing.Queue()
     zipped_files_queue = multiprocessing.Queue()
     to_upload_queue = multiprocessing.Queue()
     uploaded_queue = multiprocessing.Queue()
@@ -70,43 +99,64 @@ if __name__ == "__main__":
         if not Path(row['_Path']).exists():
             logging.error(f"Path does not exist {row['_Path']}, index: {ind}")
             exit(1)
+        # Only compute the file/folder size if not already done
+        if pd.isna(row['_size']):
+            ff_size = utils.get_ffsize(row['_Path'])
+            row['_size'] = ff_size
+            to_upload_df.at[ind, '_size'] = ff_size
+            row['_size'] = ff_size
         if row['_status'] == 'Empty folder':
             logging.info(f"Skipping empty folder: {row['Foldername']}")
             continue
-        elif row['_status'] in ['Folder', 'Zipped Folder'] and config['ZIP_FOLDERS']:
+        elif row['_status'] in ['Folder', 'Zipped FF'] and config['ZIP_FOLDERS']:
             # Check if the folder is already zipped
             if row['_zipPath']:
                 zip_path = Path(row['_zipPath'])
-                if zip_path.exists() and row['_status'] == 'Zipped Folder':
+                if zip_path.exists() and row['_status'] == 'Zipped FF':
                     logging.info(f"Found zip file: {row['_zipPath']}")
                     to_upload_queue.put(row.to_dict())
                     continue
-                else:  # make zip
+                else:
                     # Partial zip, delete
                     if zip_path.exists():
                         available_diskspace += zip_path.stat().st_size
                         zip_path.unlink()
-                    folders_to_zip_queue.put(row.to_dict())
-                # Only compute folder size if not already done
-                if pd.isna(row['_size']):
-                    folder_size = utils.get_folder_size(row['_Path'])
-                    row['_size'] = folder_size
-                    to_upload_df.at[ind, '_size'] = folder_size
-                    row['_size'] = folder_size
+                        # Multipart zips
+                    if zip_path.with_suffix('.z01').exists():
+                        for file in zip_path.parent.glob(f"{zip_path.stem}.*"):
+                            available_diskspace += file.stat().st_size
+                            file.unlink()
+                    ff_to_zip_queue.put(row.to_dict())
                 # Check if the folder is too large to zip
                 if row['_size'] > available_diskspace:
                     logging.error(f"Folder {row['_Path']} is too large: {row['_size']}/{available_diskspace}")
                     exit(1)
         elif row['_status'] == 'Folder' and not config['ZIP_FOLDERS']:
-            to_upload_queue.put(row.to_dict())
+            # 5TB, max file size for the s3 api used by iRODS
+            if row['_size'] > FIVE_TB_FILE_LIMIT:
+                if config['ZIP_SPLIT_ABOVE_5TB'] and ZipperProcess.get_winrar_path() != "":
+                    ff_to_zip_queue.put(row.to_dict())
+                else:
+                    logging.error(f"Folder {row['_Path']} is too large for the s3api, skipping")
+                    row['_status'] == 'Skipped s3 limit'
+            else:
+                to_upload_queue.put(row.to_dict())
         elif row['_status'] == 'File':
-            to_upload_queue.put(row.to_dict())
+            # 5TB, max file size for the s3 api used by iRODS
+            if row['_size'] > FIVE_TB_FILE_LIMIT:
+                if config['ZIP_SPLIT_ABOVE_5TB'] and ZipperProcess.get_winrar_path() != "":
+                    ff_to_zip_queue.put(row.to_dict())
+                else:
+                    logging.error(f"Folder {row['_Path']} is too large for the s3api, skipping")
+                    row['_status'] == 'Skipped s3 limit'
+            else:
+                to_upload_queue.put(row.to_dict())
     # Update the progress csv
     to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
 
     # Add the None jobs to signal the process they are done
     for i in range(0, config['NUM_ZIPPERS']):
-        folders_to_zip_queue.put({'NONE': 'NONE'})
+        ff_to_zip_queue.put({'NONE': 'NONE'})
 
     # If zipping is preferred, start the processes
     if config['ZIP_FOLDERS']:
@@ -114,7 +164,7 @@ if __name__ == "__main__":
         disk_space_lock = multiprocessing.Lock()
         for i in range(0, config['NUM_ZIPPERS']):
             zipper = ZipperProcess(stop_workers,
-                                   folders_to_zip_queue,
+                                   ff_to_zip_queue,
                                    zipped_files_queue,
                                    disk_space_lock,
                                    free_diskspace,
@@ -139,9 +189,10 @@ if __name__ == "__main__":
                     zip_processes.pop(zipped_dfrow)
                 else:
                     row_index = to_upload_df.loc[to_upload_df['_zipPath'] == zipped_dfrow['_zipPath']].index[0]
-                    to_upload_df.at[row_index, '_status'] = 'Zipped Folder'
+                    to_upload_df.at[row_index, '_status'] = 'Zipped FF'
+
+                    to_upload_df = queue_multipart_zips(to_upload_queue, to_upload_df, zipped_dfrow)
                     to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
-                    to_upload_queue.put(zipped_dfrow)
             except queue.Empty:
                 pass
 
