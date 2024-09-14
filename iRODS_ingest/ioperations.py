@@ -135,15 +135,17 @@ class I_WORKER(multiprocessing.Process):
                 logging.info("Stopping I_WORKER %d", self.id)
                 self.uploaded_queue.put(self.id)
                 break
+            elif (row_dict['_size'] > 10000000) or (row_dict['_status'] == 'Zipped FF'):
+                # Create a new iRODS session for big files to avoid hitting the timeouts.
+                self.session.close()
+                self.session = Session(irods_env=self.ienv, password=self.password)
+                logging.info(f"I worker {self.id} refreshed its irods session")
             if row_dict['_zipPath']:
                 local_path = Path(row_dict['_zipPath'])
             else:
                 local_path = Path(row_dict['_Path'])
             irods_path = IrodsPath(self.session, row_dict['_iPath'])
             try:
-                if (row_dict['_size'] > 10000000) or (row_dict['_status'] == 'Zipped FF'):
-                    # Create a new iRODS session for big files to avoid hitting the timeouts.
-                    self.session = Session(irods_env=self.ienv, password=self.password)
                 self.uploader(local_path, irods_path)
                 self.uploaded_queue.put(str(irods_path))
             except Exception as e:
