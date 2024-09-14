@@ -20,19 +20,18 @@ def queue_multipart_zips(to_upload_queue, upload_df, row_dict):
     """Queue multipart zips and add them to the upload_df for status monitoring (parts don't get any metadata)"""
     parts = utils.check_for_multipart_zip(row_dict['_zipPath'])
 
-    # single zip
+    # Single zip
     if len(parts) == 1:
         to_upload_queue.put(row_dict)
         return
 
-    # multipart
-    no_metadata_dict = {k: v for k, v in row_dict.items() if k.startswith('_')}
-    no_metadata_dict['_status'] = 'Zipped FF'
+    # Multipart zip
+    row_dict['_status'] = 'Zipped FF'
     part_dicts = []
     for part in parts:
         # Add part to status dataframe
-        if str(part) != no_metadata_dict['_zipPath']:
-            part_dict = no_metadata_dict.copy()
+        if str(part) != row_dict['_zipPath']:
+            part_dict = row_dict.copy()
             part_dict['_zipPath'] = str(part)
             part_dict['_iPath'] = row_dict['_iPath'] + f".z{part.suffix[-2:]}"
             part_dict['_size'] = 0
