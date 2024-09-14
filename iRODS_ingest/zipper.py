@@ -106,11 +106,12 @@ class ZipperProcess(multiprocessing.Process):
         try:
             # Construct the WinRAR command, -inul is for no output
             # -v5T is for 5TB volumes, the max of the s3api used by irods.
-            command = [
-                self.winrar_path, "a", "-afzip" "-ep1",  "-inul", "-v5T", str(zip_path), str(local_path)
-            ]
+            # Winrar tends to create temp files in the folder from which the command is run. To avoid issues we change the directory to the zip folder.
+            command = f"{str(zip_path)[:2]} && cd {os.path.dirname(str(zip_path))} && \
+                        \"{self.winrar_path}\" a -afzip -ep1 -inul -v5T \"{str(zip_path)}\" \"{str(local_path)}\""
+            logging.info(command)
             # Execute the command
-            run(command, check=True)
+            run(command, check=True, shell=True)
             logging.info(f"Successfully zipped {local_path} to {zip_path}")
             return True
         except CalledProcessError as e:
@@ -150,18 +151,19 @@ class ZipperProcess(multiprocessing.Process):
         return True
 
     def check_winrar_zip(self, zip_path: str) -> bool:
-        """Check if the rar file is valid, as python does not support multipart zips and winrar is faster this is preferred
+        """Check if the rar file is valid, as python does not support multipart zips
+        and winrar is faster this is preferred
         Args:
             zip_path: str
                 path to the zip file
         Returns:
             bool: True if the zip file is valid"""
         # Construct the WinRAR command, -inul is for no output
-        command = [
-            self.winrar_path, "t", "-inul", zip_path]
+        command = f"{str(zip_path)[:2]} && cd {os.path.dirname(str(zip_path))} && \
+                    \"{self.winrar_path}\" t -inul \"{zip_path}\""
         # Execute the command
         try:
-            status = run(command, check=True)
+            status = run(command, check=True, shell=True)
             if status.returncode == 0:
                 return True
         except CalledProcessError:
