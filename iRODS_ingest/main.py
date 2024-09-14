@@ -72,6 +72,8 @@ if __name__ == "__main__":
         metada_df = pd.read_excel(Path(source_path).joinpath(config['METADATA_EXCEL']),
                                   skiprows=0, engine="openpyxl")
         to_upload_df = metada_df.loc[metada_df['_to_upload'] == 'v'].copy()
+        if '_status' not in to_upload_df.columns:
+            to_upload_df['_status'] = ""
         to_upload_df['_status'] = to_upload_df['_status'].astype(str)
         to_upload_df = create_task_df(to_upload_df, source_path, target_ipath, zip_path, isession)
         to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
@@ -121,10 +123,10 @@ if __name__ == "__main__":
                         available_diskspace += zip_path.stat().st_size
                         zip_path.unlink()
                         # Multipart zips
-                        if zip_path.with_suffix('.z01').exists():
-                            for file in zip_path.parent.glob(f"{zip_path.stem}.*"):
-                                available_diskspace += file.stat().st_size
-                                file.unlink()
+                    if zip_path.with_suffix('.z01').exists():
+                        for file in zip_path.parent.glob(f"{zip_path.stem}.*"):
+                            available_diskspace += file.stat().st_size
+                            file.unlink()
                     ff_to_zip_queue.put(row.to_dict())
                 # Check if the folder is too large to zip
                 if row['_size'] > available_diskspace:
