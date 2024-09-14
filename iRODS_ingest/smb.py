@@ -2,6 +2,7 @@ import subprocess
 import logging
 import string
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
 
 class SMB():
@@ -25,10 +26,28 @@ class SMB():
             self.drive_letter += ':'
 
         # Find used drive letters
-        mounted_drives = [x + ':' for x in string.ascii_uppercase if Path(x + ":").exists()]
+        mounted_drives = [x + ':' for x in string.ascii_uppercase if self.path_exists_with_timeout(Path(x + ":"))]
         if self.drive_letter in mounted_drives and not self.is_share_mounted():
             logging.error(f"Drive {self.drive_letter} is already used for something else")
             exit(1)
+
+    def path_exists_with_timeout(self, path, timeout=1):
+        """Check if a path exists with a timeout.
+        Args:
+            path: Path
+                path to check
+            timeout: int
+                timeout in seconds
+        Return:
+            bool
+        """
+        with ThreadPoolExecutor() as executor:
+            future = executor.submit(path.exists)
+            try:
+                return future.result(timeout=timeout)
+            except TimeoutError:
+                logging.warning(f"Frozen while checking if {path} exists, advise is to check manually with 'net use' and remove disconnected disks (net use disk: /delete)")
+                return False
 
     def is_share_mounted(self):
         """"Helper to check if the SMB drive is already mounted"""
