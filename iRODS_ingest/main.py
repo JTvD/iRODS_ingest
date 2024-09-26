@@ -23,7 +23,7 @@ def queue_multipart_zips(to_upload_queue, upload_df, row_dict):
     # Single zip
     if len(parts) == 1:
         to_upload_queue.put(row_dict)
-        return
+        return upload_df
 
     # Multipart zip
     row_dict['_status'] = 'Zipped FF'
