@@ -50,6 +50,12 @@ if __name__ == "__main__":
         exit(1)
     config = utils.load_json(config_file)
 
+    # Prep progress CSV path
+    if 'PROGRESS_FILE' in config.keys() and config['PROGRESS_FILE'] and Path(config['PROGRESS_FILE']).parent.is_dir():
+        progress_file_path = Path(config['PROGRESS_FILE'])
+    else:
+        progress_file_path = Path(__file__).parent.joinpath('in_progress.csv')
+
     # Retreive users password, used to mount the W if desired and login to iRODS
     password = getpass('Your iRODS password')
 
@@ -66,7 +72,7 @@ if __name__ == "__main__":
     # Only uploads the files with a 'v' in the '_to_upload' column
     if Path(__file__).parent.joinpath('in_progress.csv').exists():
         logging.info('Found in_progress.csv, continuing from there')
-        to_upload_df = pd.read_csv(Path(__file__).parent.joinpath('in_progress.csv'))
+        to_upload_df = pd.read_csv(progress_file_path)
     else:
         metada_df = pd.read_excel(Path(source_path).joinpath(config['METADATA_EXCEL']),
                                   skiprows=0, engine="openpyxl")
@@ -75,7 +81,7 @@ if __name__ == "__main__":
             to_upload_df['_status'] = ""
         to_upload_df['_status'] = to_upload_df['_status'].astype(str)
         to_upload_df = create_task_df(to_upload_df, source_path, target_ipath, zip_path, isession)
-        to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
+        to_upload_df.to_csv(progress_file_path, index=False)
 
     # Create the shared objects
     ff_to_zip_queue = multiprocessing.Queue()
@@ -152,7 +158,7 @@ if __name__ == "__main__":
             else:
                 to_upload_queue.put(row.to_dict())
     # Update the progress csv
-    to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
+    to_upload_df.to_csv(progress_file_path, index=False)
 
     # Add the None jobs to signal the process they are done
     for i in range(0, config['NUM_ZIPPERS']):
@@ -192,7 +198,7 @@ if __name__ == "__main__":
                     to_upload_df.at[row_index, '_status'] = 'Zipped FF'
 
                     to_upload_df = queue_multipart_zips(to_upload_queue, to_upload_df, zipped_dfrow)
-                    to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
+                    to_upload_df.to_csv(progress_file_path, index=False)
             except queue.Empty:
                 pass
 
@@ -210,7 +216,7 @@ if __name__ == "__main__":
             else:
                 row_index = to_upload_df.loc[to_upload_df['_iPath'] == i_path].index[0]
                 to_upload_df.at[row_index, '_status'] = 'Uploaded'
-                to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
+                to_upload_df.to_csv(progress_file_path, index=False)
                 # Cleanup the zip file if it was created
                 if to_upload_df.at[row_index, '_zipPath']:
                     if Path(to_upload_df.at[row_index, '_zipPath']).exists():
@@ -226,21 +232,21 @@ if __name__ == "__main__":
         if row['_status'] == 'Uploaded':
             ioperations.add_metadata(isession, row)
             to_upload_df.at[ind, '_status'] = 'Metadata added'
-    to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
+    to_upload_df.to_csv(progress_file_path, index=False)
 
     # Send to tape
     # for ind, row in to_upload_df.iterrows():
     #     if row['_status'] == 'Metadata added':
     #         if ioperations.send_to_tape(isession, row):
     #             to_upload_df.at[ind, '_status'] = 'Sent to tape'
-    # to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
+    # to_upload_df.to_csv(progress_file_path, index=False)
 
     # Check taping status
     for ind, row in to_upload_df.iterrows():
         if row['_status'] == 'Sent to tape':
             if ioperations.check_status(isession, row):
                 to_upload_df.at[ind, '_status'] = 'Archived'
-    to_upload_df.to_csv(Path(__file__).parent.joinpath('in_progress.csv'), index=False)
+    to_upload_df.to_csv(progress_file_path, index=False)
 
     # Print the summary of the statuses
     status_counts = to_upload_df['_status'].value_counts()

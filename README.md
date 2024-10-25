@@ -78,6 +78,7 @@ A config file is used to pass all the parameters, the goal is to make it easy to
     "LOCAL_ZIP_SPACE": "30GB", # Size of the temporary zip area in human readable size, to avoid overflowing disks
     "IRODS_TARGET_PATH": "", # ignored due to bug, see notes
     "METADATA_EXCEL": "test_metadata.xlsx" # Excel file with the list of files to upload and metadata
+    "PROGRESS_FILE": "progres.csv" "optional: absolute location of the progress csv file. uses the current working directory if only a filename is entered."
 }
 ```
 
