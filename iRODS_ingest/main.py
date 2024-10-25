@@ -1,5 +1,6 @@
 from getpass import getpass
 from pathlib import Path
+import argparse
 import logging
 import multiprocessing
 import pandas as pd
@@ -43,8 +44,16 @@ def queue_multipart_zips(to_upload_queue, upload_df, row_dict):
 
 
 if __name__ == "__main__":
+    # Parse arguments
+    parser = argparse.ArgumentParser(description="Script to process and upload files.")
+    parser.add_argument('--config', type=str, required=False, help='Path to the config file')
+    args = parser.parse_args()
+
     # Check and load the config
-    config_file = Path(__file__).parent.joinpath("config.json")
+    if args.config:
+        config_file = Path(args.config)
+    else:
+        config_file = Path(__file__).parent.joinpath("config.json")
     if not utils.check_file_exists(config_file):
         logging.error('Missing config file, exiting')
         exit(1)
