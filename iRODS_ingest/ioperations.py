@@ -29,14 +29,26 @@ def add_metadata(session, row):
         # Skip upload status columns
         if col[0] == '_':
             continue
+        # NPEC ---------------------------------------
         if 'NPEC ' in col:
             tagname = col.replace('NPEC ', 'NPEC_').replace('npec ', 'NPEC_')
         else:
             tagname = f"NPEC_{col}"
+        # ---------------------------------------------
         # print(f"{tagname}: {row[col]}")
         if not obj_meta.__contains__(tagname):
             if str(row[col]) == 'nan':
                 obj_meta.add(tagname.rstrip(), '-')
+            # NPEC ---------------------------------------
+            elif row[col] == 'Traitseeker_UAVS':
+                obj_meta.add(tagname.rstrip(), 'Traitseeker')
+                obj_meta.add(tagname.rstrip(), 'UAV')
+            elif row[col] == 'UAVS':
+                obj_meta.add(tagname.rstrip(), 'UAV')
+            elif col == 'Crop':
+                for val in row[col].split(','):
+                    obj_meta.add(tagname.rstrip(), val.strip().lower())
+            # ---------------------------------------------
             else:
                 obj_meta.add(tagname.rstrip(), str(row[col]).rstrip())
     logging.info(f"Metadata added to {i_path}")
