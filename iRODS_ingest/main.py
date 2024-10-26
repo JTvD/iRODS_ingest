@@ -183,7 +183,7 @@ if __name__ == "__main__":
     while len(zip_processes) > 0 or len(i_processes) > 0:
         if len(zip_processes) > 0 or zipped_files_queue.qsize() > 0:
             try:
-                zipped_dfrow = zipped_files_queue.get(timeout=60)
+                zipped_dfrow = zipped_files_queue.get(timeout=10)
                 if isinstance(zipped_dfrow, int):
                     logging.info(f"Zipper {zipped_dfrow} finished")
                     zip_processes.pop(zipped_dfrow)
@@ -203,7 +203,7 @@ if __name__ == "__main__":
 
         # Uploaders
         try:
-            i_path = uploaded_queue.get(timeout=60)
+            i_path = uploaded_queue.get(timeout=10)
             if isinstance(i_path, int):
                 logging.info(f"iWorker {i_path} finished")
                 i_processes.pop(i_path)
