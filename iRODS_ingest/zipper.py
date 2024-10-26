@@ -81,7 +81,7 @@ class ZipperProcess(multiprocessing.Process):
 
         # Ubuntu
         try:
-            result = run(["where", "rar"], stdout=PIPE, stderr=PIPE, text=True)
+            result = run(["which", "rar"], stdout=PIPE, stderr=PIPE, text=True)
             if result.returncode == 0:
                 winrar_path = result.stdout.strip()
                 logging.info(f"WinRAR is installed at: {winrar_path}")
