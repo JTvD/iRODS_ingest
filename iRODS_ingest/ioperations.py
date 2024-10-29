@@ -1,6 +1,7 @@
 # iBridges operations
 import logging
 import multiprocessing
+import pandas as pd
 from datetime import datetime
 from pathlib import Path
 from ibridges import Session
@@ -152,7 +153,8 @@ class I_WORKER(multiprocessing.Process):
                 self.session.close()
                 self.session = Session(irods_env=self.ienv, password=self.password)
                 logging.info(f"I worker {self.id} refreshed its irods session")
-            if row_dict['_zipPath']:
+            # Only non-empty values will pass the if below
+            if not pd.isna(row_dict['_zipPath']):
                 local_path = Path(row_dict['_zipPath'])
             else:
                 local_path = Path(row_dict['_Path'])
