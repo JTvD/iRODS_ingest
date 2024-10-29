@@ -47,6 +47,7 @@ if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser(description="Script to process and upload files.")
     parser.add_argument('--config', type=str, required=False, help='Path to the config file')
+    parser.add_argument('-t','--totape',dest = 'totape', default = None, required=False, help = 'Add this flag to send files to tape')
     args = parser.parse_args()
 
     # Check and load the config
@@ -244,11 +245,12 @@ if __name__ == "__main__":
     to_upload_df.to_csv(progress_file_path, index=False)
 
     # Send to tape
-    # for ind, row in to_upload_df.iterrows():
-    #     if row['_status'] == 'Metadata added':
-    #         if ioperations.send_to_tape(isession, row):
-    #             to_upload_df.at[ind, '_status'] = 'Sent to tape'
-    # to_upload_df.to_csv(progress_file_path, index=False)
+    if args.totape:
+        for ind, row in to_upload_df.iterrows():
+            if row['_status'] == 'Metadata added':
+                if ioperations.send_to_tape(isession, row):
+                    to_upload_df.at[ind, '_status'] = 'Sent to tape'
+        to_upload_df.to_csv(progress_file, index=False)
 
     # Check taping status
     for ind, row in to_upload_df.iterrows():
