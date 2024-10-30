@@ -72,8 +72,11 @@ def send_to_tape(session, row):
                                       body='rdm_archive_this',
                                       params={'*file_or_collection': str(i_path)})
         if stderr == "" and 'will be tagged.' in stdout:
+            logging.info(f"Sending to tape {i_path}")
             return True
+            
         else:
+            logging.error(f"Sending to tape failed for {i_path}")
             return False
 
 
