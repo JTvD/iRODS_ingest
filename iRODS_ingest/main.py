@@ -47,7 +47,7 @@ if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser(description="Script to process and upload files.")
     parser.add_argument('--config', type=str, required=False, help='Path to the config file')
-    parser.add_argument('-t', '--totape', dest='totape', default=False, required=False, 
+    parser.add_argument('-t', '--totape', dest='totape', default=False, required=False,
                         action="store_true", help='Add this flag to send files to tape')
     args = parser.parse_args()
 
