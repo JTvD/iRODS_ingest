@@ -86,9 +86,7 @@ def create_task_df(to_upload_df: pd.DataFrame, source_path: Path,
         if row['NPEC module'] == 'ClimateCells':
             ipath = target_ipath.joinpath('M4', row['System'], str(row['Year']))
         elif row['NPEC module'] == 'Greenhouse':
-            logging.info(f"Greenhouse uploads are not yet implemented: {row['System']}")
-            exit(1)
-            # ipath = target_ipath.joinpath('M5', row['System'], str(row['Year']))
+            ipath = target_ipath.joinpath('M5', row['System'], str(row['Year']))
         elif row['NPEC module'] == 'OpenField':
             ipath = target_ipath.joinpath('M6', row['System'], str(row['Year']))
         else:
