@@ -83,14 +83,14 @@ def create_task_df(to_upload_df: pd.DataFrame, source_path: Path,
     to_upload_df['_size'] = np.nan
     for ind, row in to_upload_df.iterrows():
         local_path = source_path.joinpath(row['Foldername'])
-        if row['NPEC module'] == 'ClimateCells':
+        if row['NPEC Module'] == 'ClimateCells':
             ipath = target_ipath.joinpath('M4', row['System'], str(row['Year']))
-        elif row['NPEC module'] == 'Greenhouse':
+        elif row['NPEC Module'] == 'Greenhouse':
             ipath = target_ipath.joinpath('M5', row['System'], str(row['Year']))
-        elif row['NPEC module'] == 'OpenField':
+        elif row['NPEC Module'] == 'OpenField':
             ipath = target_ipath.joinpath('M6', row['System'], str(row['Year']))
         else:
-            logging.error(f"Unknown NPEC module: {row['NPEC module']} for file: {row['Foldername']}")
+            logging.error(f"Unknown NPEC Module: {row['NPEC Module']} for file: {row['Foldername']}")
 
         to_upload_df.at[ind, '_Path'] = str(local_path)
         if local_path.is_dir():
