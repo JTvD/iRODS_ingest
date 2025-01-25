@@ -246,7 +246,7 @@ if __name__ == "__main__":
     to_upload_df.to_csv(progress_file_path, index=False)
 
     # Send to tape
-    if args.totape:
+    if args.totape or config['TO_TAPE']:
         for ind, row in to_upload_df.iterrows():
             if row['_status'] == 'Metadata added':
                 if ioperations.send_to_tape(isession, row):
