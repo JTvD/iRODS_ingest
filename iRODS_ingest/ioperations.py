@@ -49,6 +49,8 @@ def add_metadata(session, row):
             elif col == 'Crop':
                 for val in row[col].split(','):
                     obj_meta.add(tagname.rstrip(), val.strip().lower())
+            elif col == 'NPEC_potcount' or col == 'potcount':
+                obj_meta.add(tagname.rstrip(), str(int(row[col])).rstrip())
             # ---------------------------------------------
             else:
                 obj_meta.add(tagname.rstrip(), str(row[col]).rstrip())
