@@ -229,7 +229,7 @@ if __name__ == "__main__":
                 to_upload_df.at[row_index, '_status'] = 'Uploaded'
                 to_upload_df.to_csv(progress_file_path, index=False)
                 # Cleanup the zip file if it was created
-                if not pd.isna(to_upload_df.at[row_index, '_zipPath']):
+                if not pd.isna(to_upload_df.at[row_index, '_zipPath']) and to_upload_df.at[row_index, '_zipPath'] != '':
                     if Path(to_upload_df.at[row_index, '_zipPath']).exists():
                         Path(to_upload_df.at[row_index, '_zipPath']).unlink()
                         with disk_space_lock:
