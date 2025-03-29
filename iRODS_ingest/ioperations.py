@@ -49,6 +49,8 @@ def add_metadata(session, row):
             elif col == 'Crop':
                 for val in row[col].split(','):
                     obj_meta.add(tagname.rstrip(), val.strip().lower())
+            elif col == 'NPEC_potcount' or col == 'potcount':
+                obj_meta.add(tagname.rstrip(), str(int(row[col])).rstrip())
             # ---------------------------------------------
             else:
                 obj_meta.add(tagname.rstrip(), str(row[col]).rstrip())
@@ -157,7 +159,7 @@ class I_WORKER(multiprocessing.Process):
                 self.session = Session(irods_env=self.ienv, password=self.password)
                 logging.info(f"I worker {self.id} refreshed its irods session")
             # Only non-empty values will pass the if below
-            if not pd.isna(row_dict['_zipPath']):
+            if not pd.isna(row_dict['_zipPath']) and row_dict['_zipPath'] != '':
                 local_path = Path(row_dict['_zipPath'])
             else:
                 local_path = Path(row_dict['_Path'])
